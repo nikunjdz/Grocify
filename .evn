@@ -1,3 +1,5 @@
 DATABASE_URL="postgresql://neondb_owner:npg_OMCh8gA1joIL@ep-super-sunset-ameni93y-pooler.c-5.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
 
 EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_ZW1pbmVudC1weXRob24tNzAuY2xlcmsuYWNjb3VudHMuZGV2JA
+
+EXPO_PUBLIC_CONVEX_URL=https://dependable-caterpillar-297.convex.cloud
