@@ -1,465 +1,277 @@
-import { useSignUp } from "@clerk/clerk-expo";
-import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useAuth, useSignUp } from '@clerk/clerk-expo'
+import { type Href, Link, useRouter } from 'expo-router'
+import React from 'react'
 import {
+  Pressable,
+  StyleSheet,
+  TextInput,
   View,
   Text,
-  TextInput,
-  TouchableOpacity,
-  ActivityIndicator,
+  ScrollView,
   KeyboardAvoidingView,
   Platform,
-  ScrollView,
-  StyleSheet,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+} from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
 
-export default function SignUp() {
-  const { signUp, setActive, isLoaded } = useSignUp();
-  const router = useRouter();
+export default function SignUpPage() {
+  const { signUp, setActive, isLoaded } = useSignUp()
+  const { isSignedIn } = useAuth()
+  const router = useRouter()
 
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [code, setCode] = useState("");
-  const [pendingVerification, setPendingVerification] = useState(false);
-  const [verified, setVerified] = useState(false);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [firstName, setFirstName] = React.useState('')
+  const [lastName, setLastName] = React.useState('')
+  const [emailAddress, setEmailAddress] = React.useState('')
+  const [password, setPassword] = React.useState('')
+  const [confirmPassword, setConfirmPassword] = React.useState('')
+  const [code, setCode] = React.useState('')
+  const [pendingVerification, setPendingVerification] = React.useState(false)
+  const [verified, setVerified] = React.useState(false)
+  const [error, setError] = React.useState('')
+  const [loading, setLoading] = React.useState(false)
 
-  const handleSignUp = async () => {
-    if (!isLoaded) return;
-
-    if (password !== confirmPassword) {
-      setError("Passwords do not match");
-      return;
-    }
-
-    if (password.length < 8) {
-      setError("Password must be at least 8 characters");
-      return;
-    }
-
-    setLoading(true);
-    setError("");
-
+  const handleSubmit = async () => {
+    if (!isLoaded) return
+    if (password !== confirmPassword) { setError('Passwords do not match'); return }
+    if (password.length < 8) { setError('Password must be at least 8 characters'); return }
+    setLoading(true)
+    setError('')
     try {
-      await signUp.create({
-        firstName,
-        lastName,
-        emailAddress: email,
-        password,
-      });
-
-      await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
-      setPendingVerification(true);
+      await signUp.create({ firstName, lastName, emailAddress, password })
+      await signUp.prepareEmailAddressVerification({ strategy: 'email_code' })
+      setPendingVerification(true)
     } catch (err: any) {
-      setError(err.errors?.[0]?.message || "Sign up failed. Please try again.");
+      setError(err.errors?.[0]?.message || 'Sign up failed')
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
-
-  const handleVerify = async () => {
-    if (!isLoaded) return;
-    setLoading(true);
-    setError("");
-
-    try {
-      const result = await signUp.attemptEmailAddressVerification({ code });
-
-      if (result.status === "complete") {
-        setVerified(true);
-        setTimeout(async () => {
-          await setActive({ session: result.createdSessionId });
-          router.replace("/(home)");
-        }, 2500);
-      }
-    } catch (err: any) {
-      setError(err.errors?.[0]?.message || "Invalid code. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // ── Verified Success Screen ──────────────────────────────────────
-  if (verified) {
-    return (
-      <SafeAreaView style={styles.safe}>
-        <View style={styles.inner}>
-
-          <View style={styles.successCircle}>
-            <Text style={styles.checkmark}>✓</Text>
-          </View>
-
-          <Text style={styles.successTitle}>Email Verified!</Text>
-          <Text style={styles.successSubtitle}>
-            Your account has been successfully{"\n"}
-            verified. Redirecting you now...
-          </Text>
-
-          <TouchableOpacity
-            style={styles.outlineButton}
-            onPress={() => router.replace("/(auth)/sign-in")}
-          >
-            <Text style={styles.outlineButtonText}>Back to Sign In</Text>
-          </TouchableOpacity>
-
-        </View>
-      </SafeAreaView>
-    );
   }
 
-  // ── OTP Verification Screen ──────────────────────────────────────
+  const handleVerify = async () => {
+    if (!isLoaded) return
+    setLoading(true)
+    setError('')
+    try {
+      const result = await signUp.attemptEmailAddressVerification({ code })
+      if (result.status === 'complete') {
+        setVerified(true)
+        setTimeout(async () => {
+          await setActive({ session: result.createdSessionId })
+          router.replace('/(home)' as Href)
+        }, 2500)
+      }
+    } catch (err: any) {
+      setError(err.errors?.[0]?.message || 'Invalid code')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (isSignedIn) return null
+
+  // ── Verified ─────────────────────────────────────────────────────
+  if (verified) {
+    return (
+      <SafeAreaView style={s.safe}>
+        <View style={s.centeredView}>
+          <View style={s.successCircle}>
+            <Text style={s.checkmark}>✓</Text>
+          </View>
+          <Text style={s.successTitle}>Email Verified!</Text>
+          <Text style={s.successSubtitle}>
+            Your account has been successfully{'\n'}verified. Redirecting you now...
+          </Text>
+          <Pressable
+            style={({ pressed }) => [s.outlineBtn, pressed && s.pressed]}
+            onPress={() => router.replace('/(auth)/sign-in' as Href)}
+          >
+            <Text style={s.outlineBtnText}>Back to Sign In</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    )
+  }
+
+  // ── OTP ──────────────────────────────────────────────────────────
   if (pendingVerification) {
     return (
-      <SafeAreaView style={styles.safe}>
-        <KeyboardAvoidingView
-          style={styles.container}
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-        >
-          <View style={styles.inner}>
-
-            <View style={styles.emailCircle}>
-              <Text style={styles.emailIcon}>📧</Text>
+      <SafeAreaView style={s.safe}>
+        <KeyboardAvoidingView style={s.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <View style={s.centeredView}>
+            <View style={s.emailCircle}>
+              <Text style={s.emailIcon}>📧</Text>
             </View>
-
-            <Text style={styles.title}>Check your email</Text>
-            <Text style={styles.subtitle}>
-              We sent a 6-digit code to{"\n"}
-              <Text style={styles.emailHighlight}>{email}</Text>
+            <Text style={s.title}>Check your email</Text>
+            <Text style={s.subtitle}>
+              We sent a code to{'\n'}
+              <Text style={s.highlight}>{emailAddress}</Text>
             </Text>
 
-            {error ? (
-              <View style={styles.errorBox}>
-                <Text style={styles.errorText}>{error}</Text>
-              </View>
-            ) : null}
+            {error ? <View style={s.errorBox}><Text style={s.errorText}>{error}</Text></View> : null}
 
             <TextInput
-              style={styles.codeInput}
-              placeholder="000000"
-              placeholderTextColor="#d1d5db"
+              style={s.codeInput}
               value={code}
+              placeholder="000000"
+              placeholderTextColor="rgba(255,255,255,0.3)"
               onChangeText={setCode}
-              keyboardType="number-pad"
+              keyboardType="numeric"
               maxLength={6}
             />
 
-            <TouchableOpacity
-              style={[styles.button, loading && styles.buttonDisabled]}
+            <Pressable
+              style={({ pressed }) => [s.btn, (loading || !code) && s.btnDisabled, pressed && s.pressed]}
               onPress={handleVerify}
-              disabled={loading}
+              disabled={loading || !code}
             >
-              {loading ? (
-                <ActivityIndicator color="white" />
-              ) : (
-                <Text style={styles.buttonText}>Verify Email</Text>
-              )}
-            </TouchableOpacity>
+              <Text style={s.btnText}>{loading ? 'Verifying...' : 'Verify Email'}</Text>
+            </Pressable>
 
-            <TouchableOpacity
-              style={styles.link}
+            <Pressable
+              style={({ pressed }) => [s.secondaryBtn, pressed && s.pressed]}
+              onPress={() => signUp.prepareEmailAddressVerification({ strategy: 'email_code' })}
+            >
+              <Text style={s.secondaryBtnText}>Resend code</Text>
+            </Pressable>
+
+            <Pressable
+              style={({ pressed }) => [s.secondaryBtn, pressed && s.pressed]}
               onPress={() => setPendingVerification(false)}
             >
-              <Text style={styles.linkText}>
-                Wrong email?{" "}
-                <Text style={styles.linkBold}>Go back</Text>
-              </Text>
-            </TouchableOpacity>
-
+              <Text style={s.secondaryBtnText}>Wrong email? Go back</Text>
+            </Pressable>
           </View>
         </KeyboardAvoidingView>
       </SafeAreaView>
-    );
+    )
   }
 
-  // ── Sign Up Screen ───────────────────────────────────────────────
+  // ── Sign Up Form ──────────────────────────────────────────────────
   return (
-    <SafeAreaView style={styles.safe}>
-      <KeyboardAvoidingView
-        style={styles.container}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-      >
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          <Text style={styles.title}>Create Account</Text>
-          <Text style={styles.subtitle}>Sign up to get started today</Text>
+    <SafeAreaView style={s.safe}>
+      <KeyboardAvoidingView style={s.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <ScrollView contentContainerStyle={s.container} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
 
-          {error ? (
-            <View style={styles.errorBox}>
-              <Text style={styles.errorText}>{error}</Text>
-            </View>
-          ) : null}
+          {/* Header */}
+          <Text style={s.appName}>GROCIFY</Text>
+          <Text style={s.title}>Create Account</Text>
+          <Text style={s.subtitle}>Sign up to get started today</Text>
+
+          {error ? <View style={s.errorBox}><Text style={s.errorText}>{error}</Text></View> : null}
 
           {/* Name Row */}
-          <View style={styles.nameRow}>
+          <View style={s.nameRow}>
             <TextInput
-              style={[styles.input, styles.halfInput]}
-              placeholder="First Name"
-              placeholderTextColor="#9ca3af"
-              value={firstName}
-              onChangeText={setFirstName}
+              style={[s.input, s.halfInput]}
               autoCapitalize="words"
+              value={firstName}
+              placeholder="First Name"
+              placeholderTextColor="rgba(255,255,255,0.4)"
+              onChangeText={setFirstName}
             />
             <TextInput
-              style={[styles.input, styles.halfInput]}
-              placeholder="Last Name"
-              placeholderTextColor="#9ca3af"
-              value={lastName}
-              onChangeText={setLastName}
+              style={[s.input, s.halfInput]}
               autoCapitalize="words"
+              value={lastName}
+              placeholder="Last Name"
+              placeholderTextColor="rgba(255,255,255,0.4)"
+              onChangeText={setLastName}
             />
           </View>
 
           <TextInput
-            style={styles.input}
-            placeholder="Email address"
-            placeholderTextColor="#9ca3af"
-            value={email}
-            onChangeText={setEmail}
+            style={s.input}
             autoCapitalize="none"
+            value={emailAddress}
+            placeholder="Email address"
+            placeholderTextColor="rgba(255,255,255,0.4)"
+            onChangeText={setEmailAddress}
             keyboardType="email-address"
           />
 
           <TextInput
-            style={styles.input}
-            placeholder="Password (min 8 characters)"
-            placeholderTextColor="#9ca3af"
+            style={s.input}
             value={password}
-            onChangeText={setPassword}
+            placeholder="Password (min 8 characters)"
+            placeholderTextColor="rgba(255,255,255,0.4)"
             secureTextEntry
+            onChangeText={setPassword}
           />
 
           <TextInput
-            style={styles.input}
-            placeholder="Confirm Password"
-            placeholderTextColor="#9ca3af"
+            style={s.input}
             value={confirmPassword}
-            onChangeText={setConfirmPassword}
+            placeholder="Confirm Password"
+            placeholderTextColor="rgba(255,255,255,0.4)"
             secureTextEntry
+            onChangeText={setConfirmPassword}
           />
 
-          <TouchableOpacity
-            style={[styles.button, loading && styles.buttonDisabled]}
-            onPress={handleSignUp}
-            disabled={loading}
+          <Pressable
+            style={({ pressed }) => [s.btn, (!emailAddress || !password || !firstName || loading) && s.btnDisabled, pressed && s.pressed]}
+            onPress={handleSubmit}
+            disabled={!emailAddress || !password || !firstName || loading}
           >
-            {loading ? (
-              <ActivityIndicator color="white" />
-            ) : (
-              <Text style={styles.buttonText}>Create Account</Text>
-            )}
-          </TouchableOpacity>
+            <Text style={s.btnText}>{loading ? 'Creating account...' : 'Create Account'}</Text>
+          </Pressable>
 
           {/* Divider */}
-          <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>or</Text>
-            <View style={styles.dividerLine} />
+          <View style={s.divider}>
+            <View style={s.dividerLine} />
+            <Text style={s.dividerText}>or</Text>
+            <View style={s.dividerLine} />
           </View>
 
-          <TouchableOpacity
-            style={styles.link}
-            onPress={() => router.push("/(auth)/sign-in")}
-          >
-            <Text style={styles.linkText}>
-              Already have an account?{" "}
-              <Text style={styles.linkBold}>Sign In</Text>
-            </Text>
-          </TouchableOpacity>
+          <View style={s.signInRow}>
+            <Text style={s.signInText}>Already have an account? </Text>
+            <Link href="/sign-in"><Text style={s.signInLink}>Sign In</Text></Link>
+          </View>
 
+          <View nativeID="clerk-captcha" />
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
-  );
+  )
 }
 
-const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: "#fff",
-  },
-  container: {
-    flex: 1,
-  },
-  inner: {
-    flex: 1,
-    justifyContent: "center",
-    paddingHorizontal: 24,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    justifyContent: "center",
-    paddingHorizontal: 24,
-    paddingVertical: 32,
-  },
+const GREEN = '#1e4d2b'
+const WHITE = '#ffffff'
+const WHITE_DIM = 'rgba(255,255,255,0.7)'
+const WHITE_FAINT = 'rgba(255,255,255,0.15)'
+const GREEN_CARD = 'rgba(255,255,255,0.08)'
 
-  // ── Success screen ──
-  successCircle: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: "#dcfce7",
-    alignItems: "center",
-    justifyContent: "center",
-    alignSelf: "center",
-    marginBottom: 28,
-  },
-  checkmark: {
-    fontSize: 46,
-    color: "#16a34a",
-  },
-  successTitle: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#111827",
-    textAlign: "center",
-    marginBottom: 12,
-  },
-  successSubtitle: {
-    fontSize: 15,
-    color: "#6b7280",
-    textAlign: "center",
-    lineHeight: 24,
-    marginBottom: 40,
-  },
-  outlineButton: {
-    borderWidth: 1.5,
-    borderColor: "#2563eb",
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: "center",
-  },
-  outlineButtonText: {
-    color: "#2563eb",
-    fontWeight: "600",
-    fontSize: 15,
-  },
-
-  // ── OTP screen ──
-  emailCircle: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    backgroundColor: "#eff6ff",
-    alignItems: "center",
-    justifyContent: "center",
-    alignSelf: "center",
-    marginBottom: 24,
-  },
-  emailIcon: {
-    fontSize: 40,
-  },
-  codeInput: {
-    borderWidth: 1,
-    borderColor: "#d1d5db",
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 18,
-    fontSize: 28,
-    marginBottom: 24,
-    color: "#111827",
-    backgroundColor: "#f9fafb",
-    textAlign: "center",
-    letterSpacing: 12,
-    fontWeight: "bold",
-  },
-
-  // ── Shared ──
-  title: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#111827",
-    marginBottom: 6,
-  },
-  subtitle: {
-    fontSize: 15,
-    color: "#6b7280",
-    marginBottom: 32,
-    lineHeight: 22,
-  },
-  emailHighlight: {
-    color: "#2563eb",
-    fontWeight: "600",
-  },
-  errorBox: {
-    backgroundColor: "#fef2f2",
-    borderWidth: 1,
-    borderColor: "#fecaca",
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 16,
-  },
-  errorText: {
-    color: "#dc2626",
-    fontSize: 13,
-    textAlign: "center",
-  },
-  nameRow: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#d1d5db",
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 15,
-    marginBottom: 16,
-    color: "#111827",
-    backgroundColor: "#f9fafb",
-  },
-  halfInput: {
-    flex: 1,
-    marginBottom: 16,
-  },
-  button: {
-    backgroundColor: "#2563eb",
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  buttonDisabled: {
-    backgroundColor: "#93c5fd",
-  },
-  buttonText: {
-    color: "white",
-    fontWeight: "700",
-    fontSize: 16,
-  },
-  divider: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: "#e5e7eb",
-  },
-  dividerText: {
-    marginHorizontal: 12,
-    color: "#9ca3af",
-    fontSize: 13,
-  },
-  link: {
-    alignItems: "center",
-    paddingVertical: 8,
-  },
-  linkText: {
-    color: "#6b7280",
-    fontSize: 14,
-  },
-  linkBold: {
-    color: "#2563eb",
-    fontWeight: "600",
-  },
-});
+const s = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: GREEN },
+  flex: { flex: 1 },
+  container: { flexGrow: 1, padding: 24, paddingTop: 32 },
+  centeredView: { flex: 1, justifyContent: 'center', paddingHorizontal: 24 },
+  appName: { fontSize: 32, fontWeight: '800', color: WHITE, letterSpacing: 4, marginBottom: 16 },
+  title: { fontSize: 26, fontWeight: '700', color: WHITE, marginBottom: 6 },
+  subtitle: { fontSize: 14, color: WHITE_DIM, marginBottom: 28, lineHeight: 22, textAlign: 'center' },
+  highlight: { color: '#4ade80', fontWeight: '600' },
+  nameRow: { flexDirection: 'row', gap: 12, marginBottom: 0 },
+  halfInput: { flex: 1 },
+  input: { borderWidth: 1, borderColor: WHITE_FAINT, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, fontSize: 15, marginBottom: 14, color: WHITE, backgroundColor: GREEN_CARD },
+  codeInput: { borderWidth: 1, borderColor: WHITE_FAINT, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 18, fontSize: 28, marginBottom: 20, color: WHITE, backgroundColor: GREEN_CARD, textAlign: 'center', letterSpacing: 12, fontWeight: 'bold', width: '100%' },
+  btn: { backgroundColor: '#4ade80', borderRadius: 12, paddingVertical: 16, alignItems: 'center', marginBottom: 16 },
+  btnDisabled: { opacity: 0.5 },
+  btnText: { color: GREEN, fontWeight: '700', fontSize: 16 },
+  pressed: { opacity: 0.75 },
+  secondaryBtn: { paddingVertical: 10, alignItems: 'center', marginBottom: 4 },
+  secondaryBtnText: { color: WHITE_DIM, fontWeight: '600', fontSize: 14 },
+  outlineBtn: { borderWidth: 1.5, borderColor: '#4ade80', borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginTop: 8 },
+  outlineBtnText: { color: '#4ade80', fontWeight: '600', fontSize: 15 },
+  errorBox: { backgroundColor: 'rgba(220,38,38,0.15)', borderWidth: 1, borderColor: 'rgba(220,38,38,0.4)', borderRadius: 10, padding: 12, marginBottom: 16 },
+  errorText: { color: '#fca5a5', fontSize: 13, textAlign: 'center' },
+  divider: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
+  dividerLine: { flex: 1, height: 1, backgroundColor: WHITE_FAINT },
+  dividerText: { marginHorizontal: 12, color: WHITE_DIM, fontSize: 12 },
+  signInRow: { flexDirection: 'row', justifyContent: 'center', marginBottom: 24 },
+  signInText: { color: WHITE_DIM, fontSize: 14 },
+  signInLink: { color: '#4ade80', fontWeight: '600', fontSize: 14 },
+  successCircle: { width: 100, height: 100, borderRadius: 50, backgroundColor: 'rgba(74,222,128,0.2)', alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginBottom: 28, borderWidth: 2, borderColor: '#4ade80' },
+  checkmark: { fontSize: 46, color: '#4ade80' },
+  successTitle: { fontSize: 28, fontWeight: 'bold', color: WHITE, textAlign: 'center', marginBottom: 12 },
+  successSubtitle: { fontSize: 15, color: WHITE_DIM, textAlign: 'center', lineHeight: 24, marginBottom: 40 },
+  emailCircle: { width: 90, height: 90, borderRadius: 45, backgroundColor: GREEN_CARD, alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginBottom: 24, borderWidth: 1, borderColor: WHITE_FAINT },
+  emailIcon: { fontSize: 40 },
+})
