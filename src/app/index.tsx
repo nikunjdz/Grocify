@@ -1,13 +1,14 @@
-import { useAuth } from '@clerk/clerk-expo'
-import { Redirect } from 'expo-router'
-import { View } from 'react-native'
+import { View, Text } from 'react-native';
 
-export default function Index() {
-  const { isSignedIn, isLoaded } = useAuth()
-
-  if (!isLoaded) return <View style={{ flex: 1, backgroundColor: '#1e4d2b' }} />
-
-  if (isSignedIn) return <Redirect href="/" />
-
-  return <Redirect href="/(auth)/sign-in" />
+export default function HomeScreen() {
+  return (
+    <View className="flex-1 items-center justify-center bg-white">
+      <Text className="text-4xl font-bold text-blue-600 mb-4">
+        Grocify
+      </Text>
+      <Text className="text-xl text-gray-600">
+        Grocery App – Ready to go!
+      </Text>
+    </View>
+  );
 }
