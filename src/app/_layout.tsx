@@ -1,8 +1,6 @@
 import { ClerkProvider } from '@clerk/clerk-expo'
 import { Slot } from 'expo-router'
 import * as SecureStore from 'expo-secure-store'
-import { ActivityIndicator, View } from 'react-native'
-import { useEffect, useState } from 'react'
 import '../../global.css'
 
 const tokenCache = {
