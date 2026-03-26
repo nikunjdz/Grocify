@@ -1,7 +1,7 @@
-import { useAuth, useUser } from '@clerk/expo'
-import { Ionicons } from '@expo/vector-icons'
-import * as ImagePicker from 'expo-image-picker'
-import React, { useState } from 'react'
+import { useAuth, useUser } from '@clerk/clerk-expo';  // ✅ fixed import
+import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+import React, { useState } from 'react';
 import {
   Alert,
   Image,
@@ -14,80 +14,80 @@ import {
   TouchableOpacity,
   useColorScheme,
   View,
-} from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function ProfileScreen() {
-  const { user } = useUser()
-  const { signOut } = useAuth()
-  const colorScheme = useColorScheme()
-  const [isDark, setIsDark] = useState(colorScheme === 'dark')
-  const c = isDark ? dark : light
+  const { user } = useUser();
+  const { signOut } = useAuth();
+  const colorScheme = useColorScheme();
+  const [isDark, setIsDark] = useState(colorScheme === 'dark');
+  const c = isDark ? dark : light;
 
-  const [editModal, setEditModal] = useState(false)
-  const [bugModal, setBugModal] = useState(false)
-  const [firstName, setFirstName] = useState(user?.firstName || '')
-  const [lastName, setLastName] = useState(user?.lastName || '')
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true)
-  const [bugName, setBugName] = useState('')
-  const [bugEmail, setBugEmail] = useState(user?.emailAddresses?.[0]?.emailAddress || '')
-  const [bugDesc, setBugDesc] = useState('')
-  const [saving, setSaving] = useState(false)
+  const [editModal, setEditModal] = useState(false);
+  const [bugModal, setBugModal] = useState(false);
+  const [firstName, setFirstName] = useState(user?.firstName || '');
+  const [lastName, setLastName] = useState(user?.lastName || '');
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [bugName, setBugName] = useState('');
+  const [bugEmail, setBugEmail] = useState(user?.emailAddresses?.[0]?.emailAddress || '');
+  const [bugDesc, setBugDesc] = useState('');
+  const [saving, setSaving] = useState(false);
 
-  const email = user?.emailAddresses?.[0]?.emailAddress || ''
-  const fullName = [user?.firstName, user?.lastName].filter(Boolean).join(' ') || 'User'
-  const initials = [user?.firstName?.[0], user?.lastName?.[0]].filter(Boolean).join('').toUpperCase() || 'U'
+  const email = user?.emailAddresses?.[0]?.emailAddress || '';
+  const fullName = [user?.firstName, user?.lastName].filter(Boolean).join(' ') || 'User';
+  const initials = [user?.firstName?.[0], user?.lastName?.[0]].filter(Boolean).join('').toUpperCase() || 'U';
   const joinDate = user?.createdAt
     ? new Date(user.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-    : 'Unknown'
+    : 'Unknown';
 
   const saveProfile = async () => {
-    if (!firstName.trim()) { Alert.alert('Required', 'First name cannot be empty'); return }
-    setSaving(true)
+    if (!firstName.trim()) { Alert.alert('Required', 'First name cannot be empty'); return; }
+    setSaving(true);
     try {
-      await user?.update({ firstName: firstName.trim(), lastName: lastName.trim() })
-      setEditModal(false)
-      Alert.alert('Saved!', 'Your profile has been updated.')
+      await user?.update({ firstName: firstName.trim(), lastName: lastName.trim() });
+      setEditModal(false);
+      Alert.alert('Saved!', 'Your profile has been updated.');
     } catch (err: any) {
-      Alert.alert('Error', err.errors?.[0]?.message || 'Failed to update profile')
+      Alert.alert('Error', err.errors?.[0]?.message || 'Failed to update profile');
     } finally {
-      setSaving(false)
+      setSaving(false);
     }
-  }
+  };
 
   const pickImage = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
-    if (status !== 'granted') { Alert.alert('Permission required', 'Please allow photo library access.'); return }
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') { Alert.alert('Permission required', 'Please allow photo library access.'); return; }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
-    })
+    });
     if (!result.canceled && result.assets[0]) {
       try {
-        await user?.setProfileImage({ file: result.assets[0].uri })
-        Alert.alert('Updated!', 'Profile photo updated.')
+        await user?.setProfileImage({ file: result.assets[0].uri });
+        Alert.alert('Updated!', 'Profile photo updated.');
       } catch {
-        Alert.alert('Error', 'Failed to update profile photo.')
+        Alert.alert('Error', 'Failed to update profile photo.');
       }
     }
-  }
+  };
 
   const sendBug = () => {
-    if (!bugDesc.trim()) { Alert.alert('Required', 'Please describe the bug'); return }
-    Alert.alert('Sent!', 'Bug report received. Thank you!')
-    setBugModal(false)
-    setBugName('')
-    setBugDesc('')
-  }
+    if (!bugDesc.trim()) { Alert.alert('Required', 'Please describe the bug'); return; }
+    Alert.alert('Sent!', 'Bug report received. Thank you!');
+    setBugModal(false);
+    setBugName('');
+    setBugDesc('');
+  };
 
   const handleSignOut = () => {
     Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Sign Out', style: 'destructive', onPress: () => signOut() },
-    ])
-  }
+    ]);
+  };
 
   return (
     <SafeAreaView style={[s.safe, { backgroundColor: c.bg }]}>
@@ -121,7 +121,7 @@ export default function ProfileScreen() {
           <Text style={[s.profileJoin, { color: c.sub }]}>Member since {joinDate}</Text>
           <TouchableOpacity
             style={[s.editProfileBtn, { backgroundColor: c.green }]}
-            onPress={() => { setFirstName(user?.firstName || ''); setLastName(user?.lastName || ''); setEditModal(true) }}
+            onPress={() => { setFirstName(user?.firstName || ''); setLastName(user?.lastName || ''); setEditModal(true); }}
           >
             <Ionicons name="pencil-outline" size={16} color="#fff" />
             <Text style={s.editProfileBtnText}>Edit Profile</Text>
@@ -219,14 +219,31 @@ export default function ProfileScreen() {
               </TouchableOpacity>
             </View>
             <Text style={[s.inputLbl, { color: c.text }]}>First Name</Text>
-            <TextInput style={[s.input, { backgroundColor: c.card, color: c.text, borderColor: c.border }]} placeholder="First name" placeholderTextColor={c.sub} value={firstName} onChangeText={setFirstName} autoFocus />
+            <TextInput
+              style={[s.input, { backgroundColor: c.card, color: c.text, borderColor: c.border }]}
+              placeholder="First name"
+              placeholderTextColor={c.sub}
+              value={firstName}
+              onChangeText={setFirstName}
+              autoFocus
+            />
             <Text style={[s.inputLbl, { color: c.text }]}>Last Name</Text>
-            <TextInput style={[s.input, { backgroundColor: c.card, color: c.text, borderColor: c.border }]} placeholder="Last name" placeholderTextColor={c.sub} value={lastName} onChangeText={setLastName} />
+            <TextInput
+              style={[s.input, { backgroundColor: c.card, color: c.text, borderColor: c.border }]}
+              placeholder="Last name"
+              placeholderTextColor={c.sub}
+              value={lastName}
+              onChangeText={setLastName}
+            />
             <Text style={[s.inputLbl, { color: c.sub }]}>Email (cannot be changed)</Text>
             <View style={[s.input, s.disabledInput, { backgroundColor: c.card, borderColor: c.border }]}>
               <Text style={{ color: c.sub }}>{email}</Text>
             </View>
-            <TouchableOpacity style={[s.saveBtn, { backgroundColor: c.green, opacity: saving ? 0.7 : 1 }]} onPress={saveProfile} disabled={saving}>
+            <TouchableOpacity
+              style={[s.saveBtn, { backgroundColor: c.green, opacity: saving ? 0.7 : 1 }]}
+              onPress={saveProfile}
+              disabled={saving}
+            >
               <Text style={s.saveBtnText}>{saving ? 'Saving...' : 'Save Changes'}</Text>
             </TouchableOpacity>
           </View>
@@ -244,11 +261,33 @@ export default function ProfileScreen() {
               </TouchableOpacity>
             </View>
             <Text style={[s.inputLbl, { color: c.text }]}>Name</Text>
-            <TextInput style={[s.input, { backgroundColor: c.card, color: c.text, borderColor: c.border }]} placeholder="Your name" placeholderTextColor={c.sub} value={bugName} onChangeText={setBugName} />
+            <TextInput
+              style={[s.input, { backgroundColor: c.card, color: c.text, borderColor: c.border }]}
+              placeholder="Your name"
+              placeholderTextColor={c.sub}
+              value={bugName}
+              onChangeText={setBugName}
+            />
             <Text style={[s.inputLbl, { color: c.text }]}>Email</Text>
-            <TextInput style={[s.input, { backgroundColor: c.card, color: c.text, borderColor: c.border }]} placeholder="your@email.com" placeholderTextColor={c.sub} value={bugEmail} onChangeText={setBugEmail} keyboardType="email-address" autoCapitalize="none" />
+            <TextInput
+              style={[s.input, { backgroundColor: c.card, color: c.text, borderColor: c.border }]}
+              placeholder="your@email.com"
+              placeholderTextColor={c.sub}
+              value={bugEmail}
+              onChangeText={setBugEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
             <Text style={[s.inputLbl, { color: c.text }]}>Description <Text style={{ color: '#f87171' }}>(required)</Text></Text>
-            <TextInput style={[s.input, s.textArea, { backgroundColor: c.card, color: c.text, borderColor: c.border }]} placeholder="What's the bug?" placeholderTextColor={c.sub} value={bugDesc} onChangeText={setBugDesc} multiline numberOfLines={4} />
+            <TextInput
+              style={[s.input, s.textArea, { backgroundColor: c.card, color: c.text, borderColor: c.border }]}
+              placeholder="What's the bug?"
+              placeholderTextColor={c.sub}
+              value={bugDesc}
+              onChangeText={setBugDesc}
+              multiline
+              numberOfLines={4}
+            />
             <TouchableOpacity style={[s.saveBtn, { backgroundColor: '#6366f1' }]} onPress={sendBug}>
               <Text style={s.saveBtnText}>Send Bug Report</Text>
             </TouchableOpacity>
@@ -260,11 +299,11 @@ export default function ProfileScreen() {
       </Modal>
 
     </SafeAreaView>
-  )
+  );
 }
 
-const dark = { bg: '#0f1a12', card: '#1a2e1e', text: '#ffffff', sub: 'rgba(255,255,255,0.55)', border: 'rgba(255,255,255,0.1)', green: '#4ade80' }
-const light = { bg: '#f0faf4', card: '#ffffff', text: '#111827', sub: '#6b7280', border: '#e5e7eb', green: '#16a34a' }
+const dark = { bg: '#0f1a12', card: '#1a2e1e', text: '#ffffff', sub: 'rgba(255,255,255,0.55)', border: 'rgba(255,255,255,0.1)', green: '#4ade80' };
+const light = { bg: '#f0faf4', card: '#ffffff', text: '#111827', sub: '#6b7280', border: '#e5e7eb', green: '#16a34a' };
 
 const s = StyleSheet.create({
   safe: { flex: 1 },
@@ -306,4 +345,4 @@ const s = StyleSheet.create({
   saveBtnText: { color: '#fff', fontWeight: '700', fontSize: 16 },
   cancelBtn: { paddingVertical: 12, alignItems: 'center' },
   cancelBtnText: { fontSize: 15 },
-})
+});

@@ -1,4 +1,4 @@
-import { useSignUp, useClerk } from '@clerk/clerk-expo'
+import { useSignUp, useAuth } from '@clerk/clerk-expo'
 import { Link, useRouter } from 'expo-router'
 import React from 'react'
 import {
@@ -15,8 +15,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 export default function SignUpPage() {
-  const { isLoaded, signUp } = useSignUp()
-  const { setActive } = useClerk()
+  const { isLoaded, signUp, setActive } = useSignUp()
+  const { isSignedIn } = useAuth()
   const router = useRouter()
 
   const [firstName, setFirstName] = React.useState('')
@@ -26,10 +26,13 @@ export default function SignUpPage() {
   const [confirmPassword, setConfirmPassword] = React.useState('')
   const [code, setCode] = React.useState('')
   const [pendingVerification, setPendingVerification] = React.useState(false)
-  const [verified, setVerified] = React.useState(false)
   const [error, setError] = React.useState('')
   const [loading, setLoading] = React.useState(false)
-  const [countdown, setCountdown] = React.useState(3)
+  const [verifyLoading, setVerifyLoading] = React.useState(false)
+
+  React.useEffect(() => {
+    if (isSignedIn) router.replace('/(tabs)')
+  }, [isSignedIn])
 
   const handleSubmit = async () => {
     if (!isLoaded) return
@@ -41,75 +44,85 @@ export default function SignUpPage() {
 
     setLoading(true)
     setError('')
-
     try {
       await signUp.create({
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
         emailAddress: emailAddress.trim().toLowerCase(),
         password,
       })
       await signUp.prepareEmailAddressVerification({ strategy: 'email_code' })
       setPendingVerification(true)
     } catch (err: any) {
-      console.error('CREATE ERROR:', JSON.stringify(err, null, 2))
-      setError(
+      console.log('SIGNUP ERROR:', JSON.stringify(err, null, 2))
+      const msg =
         err?.errors?.[0]?.longMessage ||
         err?.errors?.[0]?.message ||
-        err?.message ||
         'Sign up failed. Please try again.'
-      )
+      setError(msg)
     } finally {
       setLoading(false)
     }
   }
 
   const handleVerify = async () => {
-    if (!isLoaded) return
+    if (!isLoaded || verifyLoading) return
     if (code.trim().length < 6) { setError('Please enter the 6-digit code'); return }
-    setLoading(true)
-    setError('')
 
+    setVerifyLoading(true)
+    setError('')
     try {
       const result = await signUp.attemptEmailAddressVerification({ code: code.trim() })
-      if (result.status === 'complete') {
+
+      console.log('VERIFY RESULT status:', result.status)
+      console.log('VERIFY RESULT createdSessionId:', result.createdSessionId)
+
+      // Handle all possible complete states
+      if (
+        result.status === 'complete' ||
+        result.createdSessionId != null
+      ) {
         await setActive({ session: result.createdSessionId })
-        setVerified(true)
-        let count = 3
-        setCountdown(3)
-        const interval = setInterval(() => {
-          count -= 1
-          setCountdown(count)
-          if (count === 0) {
-            clearInterval(interval)
-            router.replace('/')
-          }
-        }, 1000)
-      } else {
-        setError('Verification not complete. Please try again.')
+        router.replace('/(tabs)')
+        return
       }
+
+      // If still missing requirements, check what's left
+      if (result.status === 'missing_requirements') {
+        console.log('Missing fields:', result.missingFields)
+        console.log('Unverified fields:', result.unverifiedFields)
+        setError(`Almost done! Missing: ${result.missingFields?.join(', ') || 'unknown'}`)
+        return
+      }
+
+      setError(`Unexpected status: ${result.status}. Please try again.`)
     } catch (err: any) {
-      console.error('VERIFY ERROR:', JSON.stringify(err, null, 2))
-      setError(
+      console.log('VERIFY ERROR:', JSON.stringify(err, null, 2))
+      const msg =
         err?.errors?.[0]?.longMessage ||
         err?.errors?.[0]?.message ||
         'Invalid code. Please try again.'
-      )
+      if (msg.toLowerCase().includes('already been verified')) {
+        router.replace('/(tabs)')
+        return
+      }
+      setError(msg)
     } finally {
-      setLoading(false)
+      setVerifyLoading(false)
     }
   }
 
   const resendCode = async () => {
     if (!isLoaded) return
+    setError('')
+    setCode('')
     try {
       await signUp.prepareEmailAddressVerification({ strategy: 'email_code' })
-      setError('')
-      setCode('')
     } catch {
-      setError('Failed to resend code')
+      setError('Failed to resend code. Please try again.')
     }
   }
 
-  // ── Loading ──────────────────────────────────────────────────────
   if (!isLoaded) {
     return (
       <SafeAreaView style={[s.safe, { justifyContent: 'center', alignItems: 'center' }]}>
@@ -118,90 +131,84 @@ export default function SignUpPage() {
     )
   }
 
-  // ── Verified ─────────────────────────────────────────────────────
-  if (verified) {
-    return (
-      <SafeAreaView style={s.safe}>
-        <View style={s.verifiedScreen}>
-          <View style={s.successRing}>
-            <View style={s.successCircle}>
-              <Text style={s.checkmark}>✓</Text>
-            </View>
-          </View>
-          <Text style={s.verifiedTitle}>Account Created!</Text>
-          <Text style={s.verifiedSubtitle}>
-            Welcome to Grocify, {firstName}! 🎉{'\n'}
-            Your email has been verified successfully.
-          </Text>
-          <View style={s.countdownWrap}>
-            <Text style={s.countdownText}>
-              Redirecting in <Text style={s.countdownNum}>{countdown}</Text>...
-            </Text>
-          </View>
-          <Pressable
-            style={({ pressed }) => [s.goHomeBtn, pressed && s.pressed]}
-            onPress={() => router.replace('/')}
-          >
-            <Text style={s.goHomeBtnText}>Go to Home Now →</Text>
-          </Pressable>
-        </View>
-      </SafeAreaView>
-    )
-  }
-
-  // ── OTP ──────────────────────────────────────────────────────────
+  /* ─────────────── VERIFICATION SCREEN ─────────────── */
   if (pendingVerification) {
     return (
       <SafeAreaView style={s.safe}>
         <KeyboardAvoidingView style={s.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-          <View style={s.centeredView}>
+          <ScrollView
+            contentContainerStyle={s.centeredScroll}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
             <View style={s.emailCircle}>
               <Text style={s.emailIcon}>📧</Text>
             </View>
+
             <Text style={s.title}>Check your email</Text>
             <Text style={s.subtitle}>
               We sent a 6-digit code to{'\n'}
               <Text style={s.highlight}>{emailAddress}</Text>
             </Text>
 
-            {error ? <View style={s.errorBox}><Text style={s.errorText}>{error}</Text></View> : null}
+            {error ? (
+              <View style={s.errorBox}>
+                <Text style={s.errorText}>{error}</Text>
+              </View>
+            ) : null}
 
             <TextInput
               style={s.codeInput}
               value={code}
-              placeholder="000000"
-              placeholderTextColor="rgba(255,255,255,0.3)"
-              onChangeText={(text) => { setCode(text); setError('') }}
+              placeholder="• • • • • •"
+              placeholderTextColor="rgba(255,255,255,0.25)"
+              onChangeText={(text) => { setCode(text.replace(/[^0-9]/g, '')); setError('') }}
               keyboardType="number-pad"
               maxLength={6}
               autoFocus
+              textContentType="oneTimeCode"
             />
 
             <Pressable
-              style={({ pressed }) => [s.btn, (loading || code.length < 6) && s.btnDisabled, pressed && s.pressed]}
+              style={({ pressed }) => [
+                s.verifyBtn,
+                (verifyLoading || code.length < 6) && s.btnDisabled,
+                pressed && s.pressed,
+              ]}
               onPress={handleVerify}
-              disabled={loading || code.length < 6}
+              disabled={verifyLoading || code.length < 6}
             >
-              {loading ? <ActivityIndicator color="#1e4d2b" /> : <Text style={s.btnText}>Verify Email</Text>}
+              <View style={s.btnInner}>
+                {verifyLoading ? (
+                  <ActivityIndicator color="#1e4d2b" />
+                ) : (
+                  <>
+                    <Text style={s.btnIcon}>✓</Text>
+                    <Text style={s.btnText}>Verify & Continue</Text>
+                  </>
+                )}
+              </View>
             </Pressable>
 
-            <Pressable style={({ pressed }) => [s.secondaryBtn, pressed && s.pressed]} onPress={resendCode}>
-              <Text style={s.secondaryBtnText}>Resend code</Text>
-            </Pressable>
-
-            <Pressable
-              style={({ pressed }) => [s.secondaryBtn, pressed && s.pressed]}
-              onPress={() => { setPendingVerification(false); setCode(''); setError('') }}
-            >
-              <Text style={s.secondaryBtnText}>Wrong email? Go back</Text>
-            </Pressable>
-          </View>
+            <View style={s.linkRow}>
+              <Pressable style={({ pressed }) => [s.linkBtn, pressed && s.pressed]} onPress={resendCode}>
+                <Text style={s.linkText}>Resend code</Text>
+              </Pressable>
+              <Text style={s.linkDot}>·</Text>
+              <Pressable
+                style={({ pressed }) => [s.linkBtn, pressed && s.pressed]}
+                onPress={() => { setPendingVerification(false); setCode(''); setError('') }}
+              >
+                <Text style={s.linkText}>Wrong email? Go back</Text>
+              </Pressable>
+            </View>
+          </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
     )
   }
 
-  // ── Sign Up Form ──────────────────────────────────────────────────
+  /* ─────────────── SIGN UP SCREEN ─────────────── */
   return (
     <SafeAreaView style={s.safe}>
       <KeyboardAvoidingView style={s.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
@@ -214,7 +221,11 @@ export default function SignUpPage() {
           <Text style={s.title}>Create Account</Text>
           <Text style={s.subtitle}>Sign up to get started today</Text>
 
-          {error ? <View style={s.errorBox}><Text style={s.errorText}>{error}</Text></View> : null}
+          {error ? (
+            <View style={s.errorBox}>
+              <Text style={s.errorText}>{error}</Text>
+            </View>
+          ) : null}
 
           <View style={s.nameRow}>
             <TextInput
@@ -243,8 +254,8 @@ export default function SignUpPage() {
             placeholderTextColor="rgba(255,255,255,0.4)"
             onChangeText={(t) => { setEmailAddress(t); setError('') }}
             keyboardType="email-address"
+            textContentType="emailAddress"
           />
-
           <TextInput
             style={s.input}
             value={password}
@@ -252,8 +263,8 @@ export default function SignUpPage() {
             placeholderTextColor="rgba(255,255,255,0.4)"
             secureTextEntry
             onChangeText={(t) => { setPassword(t); setError('') }}
+            textContentType="newPassword"
           />
-
           <TextInput
             style={s.input}
             value={confirmPassword}
@@ -261,18 +272,28 @@ export default function SignUpPage() {
             placeholderTextColor="rgba(255,255,255,0.4)"
             secureTextEntry
             onChangeText={(t) => { setConfirmPassword(t); setError('') }}
+            textContentType="newPassword"
           />
 
           <Pressable
             style={({ pressed }) => [
-              s.btn,
+              s.signUpBtn,
               (!emailAddress || !password || !firstName || loading) && s.btnDisabled,
               pressed && s.pressed,
             ]}
             onPress={handleSubmit}
             disabled={!emailAddress || !password || !firstName || loading}
           >
-            {loading ? <ActivityIndicator color="#1e4d2b" /> : <Text style={s.btnText}>Create Account</Text>}
+            <View style={s.btnInner}>
+              {loading ? (
+                <ActivityIndicator color="#1e4d2b" />
+              ) : (
+                <>
+                  <Text style={s.btnIcon}>🛒</Text>
+                  <Text style={s.btnText}>Start My Grocery Journey</Text>
+                </>
+              )}
+            </View>
           </Pressable>
 
           <View style={s.divider}>
@@ -288,57 +309,105 @@ export default function SignUpPage() {
             </Link>
           </View>
 
-          <View nativeID="clerk-captcha" />
+          {Platform.OS === 'web' && <View nativeID="clerk-captcha" />}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   )
 }
 
-const GREEN = '#1e4d2b'
-const WHITE = '#ffffff'
-const WHITE_DIM = 'rgba(255,255,255,0.7)'
+/* ─────────────── STYLES ─────────────── */
+const GREEN       = '#1e4d2b'
+const GREEN_LIGHT = '#4ade80'
+const WHITE       = '#ffffff'
+const WHITE_DIM   = 'rgba(255,255,255,0.7)'
 const WHITE_FAINT = 'rgba(255,255,255,0.15)'
-const GREEN_CARD = 'rgba(255,255,255,0.08)'
+const GREEN_CARD  = 'rgba(255,255,255,0.08)'
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: GREEN },
-  flex: { flex: 1 },
-  container: { flexGrow: 1, padding: 24, paddingTop: 32 },
-  verifiedScreen: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32 },
-  successRing: { width: 120, height: 120, borderRadius: 60, borderWidth: 3, borderColor: '#4ade80', alignItems: 'center', justifyContent: 'center', marginBottom: 32 },
-  successCircle: { width: 96, height: 96, borderRadius: 48, backgroundColor: 'rgba(74,222,128,0.2)', alignItems: 'center', justifyContent: 'center' },
-  checkmark: { fontSize: 46, color: '#4ade80' },
-  verifiedTitle: { fontSize: 30, fontWeight: '800', color: WHITE, textAlign: 'center', marginBottom: 12 },
-  verifiedSubtitle: { fontSize: 15, color: WHITE_DIM, textAlign: 'center', lineHeight: 24, marginBottom: 32 },
-  countdownWrap: { backgroundColor: GREEN_CARD, borderRadius: 12, paddingHorizontal: 20, paddingVertical: 12, marginBottom: 24, borderWidth: 1, borderColor: WHITE_FAINT },
-  countdownText: { color: WHITE_DIM, fontSize: 15, textAlign: 'center' },
-  countdownNum: { color: '#4ade80', fontWeight: '800', fontSize: 18 },
-  goHomeBtn: { backgroundColor: '#4ade80', borderRadius: 14, paddingVertical: 16, paddingHorizontal: 32, alignItems: 'center' },
-  goHomeBtnText: { color: GREEN, fontWeight: '700', fontSize: 16 },
-  centeredView: { flex: 1, justifyContent: 'center', paddingHorizontal: 24 },
-  emailCircle: { width: 90, height: 90, borderRadius: 45, backgroundColor: GREEN_CARD, alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginBottom: 24, borderWidth: 1, borderColor: WHITE_FAINT },
+  safe:           { flex: 1, backgroundColor: GREEN },
+  flex:           { flex: 1 },
+  container:      { flexGrow: 1, padding: 24, paddingTop: 32 },
+  centeredScroll: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24, paddingVertical: 40 },
+
+  emailCircle: {
+    width: 90, height: 90, borderRadius: 45,
+    backgroundColor: GREEN_CARD,
+    alignItems: 'center', justifyContent: 'center',
+    alignSelf: 'center', marginBottom: 24,
+    borderWidth: 1, borderColor: WHITE_FAINT,
+  },
   emailIcon: { fontSize: 40 },
-  codeInput: { borderWidth: 1, borderColor: WHITE_FAINT, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 18, fontSize: 28, marginBottom: 20, color: WHITE, backgroundColor: GREEN_CARD, textAlign: 'center', letterSpacing: 12, fontWeight: 'bold', width: '100%' },
-  appName: { fontSize: 32, fontWeight: '800', color: WHITE, letterSpacing: 4, marginBottom: 16 },
-  title: { fontSize: 26, fontWeight: '700', color: WHITE, marginBottom: 6 },
-  subtitle: { fontSize: 14, color: WHITE_DIM, marginBottom: 28, lineHeight: 22 },
-  highlight: { color: '#4ade80', fontWeight: '600' },
-  nameRow: { flexDirection: 'row', gap: 12 },
+
+  appName:   { fontSize: 32, fontWeight: '800', color: WHITE, letterSpacing: 4, marginBottom: 16 },
+  title:     { fontSize: 26, fontWeight: '700', color: WHITE, marginBottom: 6 },
+  subtitle:  { fontSize: 14, color: WHITE_DIM, marginBottom: 28, lineHeight: 22 },
+  highlight: { color: GREEN_LIGHT, fontWeight: '600' },
+
+  nameRow:   { flexDirection: 'row', gap: 12 },
   halfInput: { flex: 1 },
-  input: { borderWidth: 1, borderColor: WHITE_FAINT, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, fontSize: 15, marginBottom: 14, color: WHITE, backgroundColor: GREEN_CARD },
-  btn: { backgroundColor: '#4ade80', borderRadius: 12, paddingVertical: 16, alignItems: 'center', marginBottom: 16 },
-  btnDisabled: { opacity: 0.5 },
-  btnText: { color: GREEN, fontWeight: '700', fontSize: 16 },
-  pressed: { opacity: 0.75 },
-  secondaryBtn: { paddingVertical: 10, alignItems: 'center', marginBottom: 4 },
-  secondaryBtnText: { color: WHITE_DIM, fontWeight: '600', fontSize: 14 },
-  errorBox: { backgroundColor: 'rgba(220,38,38,0.15)', borderWidth: 1, borderColor: 'rgba(220,38,38,0.4)', borderRadius: 10, padding: 12, marginBottom: 16 },
+  input: {
+    borderWidth: 1, borderColor: WHITE_FAINT, borderRadius: 12,
+    paddingHorizontal: 16, paddingVertical: 14,
+    fontSize: 15, marginBottom: 14,
+    color: WHITE, backgroundColor: GREEN_CARD,
+  },
+
+  codeInput: {
+    borderWidth: 2, borderColor: GREEN_LIGHT, borderRadius: 16,
+    paddingHorizontal: 16, paddingVertical: 20,
+    fontSize: 32, color: WHITE,
+    backgroundColor: GREEN_CARD,
+    textAlign: 'center', letterSpacing: 14,
+    fontWeight: '800', marginBottom: 28,
+  },
+
+  btnInner: {
+    flexDirection: 'row', alignItems: 'center',
+    justifyContent: 'center', gap: 10,
+    paddingVertical: 18, paddingHorizontal: 24,
+  },
+  btnIcon: { fontSize: 20, color: GREEN, fontWeight: '900' },
+  btnText: { color: GREEN, fontWeight: '800', fontSize: 16, letterSpacing: 0.3 },
+
+  verifyBtn: {
+    borderRadius: 16, overflow: 'hidden', marginBottom: 24,
+    backgroundColor: GREEN_LIGHT,
+    shadowColor: GREEN_LIGHT,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.5, shadowRadius: 12, elevation: 8,
+  },
+  signUpBtn: {
+    borderRadius: 16, overflow: 'hidden', marginBottom: 20,
+    backgroundColor: GREEN_LIGHT,
+    shadowColor: GREEN_LIGHT,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.45, shadowRadius: 12, elevation: 8,
+  },
+
+  btnDisabled: { opacity: 0.45 },
+  pressed:     { opacity: 0.75 },
+
+  linkRow: {
+    flexDirection: 'row', alignItems: 'center',
+    justifyContent: 'center', gap: 8, flexWrap: 'wrap',
+  },
+  linkBtn:  { paddingVertical: 8, paddingHorizontal: 4 },
+  linkText: { color: WHITE_DIM, fontWeight: '600', fontSize: 14 },
+  linkDot:  { color: WHITE_FAINT, fontSize: 18 },
+
+  errorBox: {
+    backgroundColor: 'rgba(220,38,38,0.15)',
+    borderWidth: 1, borderColor: 'rgba(220,38,38,0.4)',
+    borderRadius: 10, padding: 12, marginBottom: 16,
+  },
   errorText: { color: '#fca5a5', fontSize: 13, textAlign: 'center' },
-  divider: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
+
+  divider:     { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
   dividerLine: { flex: 1, height: 1, backgroundColor: WHITE_FAINT },
   dividerText: { marginHorizontal: 12, color: WHITE_DIM, fontSize: 12 },
-  signInRow: { flexDirection: 'row', justifyContent: 'center', marginBottom: 24 },
+
+  signInRow:  { flexDirection: 'row', justifyContent: 'center', marginBottom: 24 },
   signInText: { color: WHITE_DIM, fontSize: 14 },
-  signInLink: { color: '#4ade80', fontWeight: '600', fontSize: 14 },
+  signInLink: { color: GREEN_LIGHT, fontWeight: '600', fontSize: 14 },
 })

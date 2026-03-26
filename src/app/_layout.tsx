@@ -1,17 +1,17 @@
-import { Stack } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import '../global.css';
-import { Stack } from 'expo-router';
+import { ClerkProvider } from '@clerk/clerk-expo'
+import { Stack } from 'expo-router'
+import '../../global.css'
+import { tokenCache } from '../lib/token-cache'
+
+const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY
 
 export default function RootLayout() {
+  if (!publishableKey) {
+    throw new Error('Missing EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY in the app environment.')
+  }
   return (
-    <>
-      <Stack
-        screenOptions={{
-          headerShown: false,
-        }}
-      />
-      <StatusBar style="auto" />
-    </>
-  );
+    <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
+      <Stack screenOptions={{ headerShown: false }} />
+    </ClerkProvider>
+  )
 }

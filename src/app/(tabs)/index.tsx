@@ -1,7 +1,7 @@
-import { useAuth, useUser } from '@clerk/clerk-expo'
-import { Ionicons } from '@expo/vector-icons'
-import { useRouter } from 'expo-router'
-import React, { useState } from 'react'
+import { useUser } from '@clerk/clerk-expo';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import React, { useState, useEffect } from 'react';
 import {
     Alert,
     Modal,
@@ -12,17 +12,17 @@ import {
     TouchableOpacity,
     useColorScheme,
     View,
-} from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 type GroceryItem = {
-  id: string
-  name: string
-  category: string
-  quantity: number
-  completed: boolean
-  priority: 'high' | 'normal'
-}
+  id: string;
+  name: string;
+  category: string;
+  quantity: number;
+  completed: boolean;
+  priority: 'high' | 'normal';
+};
 
 const INITIAL_ITEMS: GroceryItem[] = [
   { id: '1', name: 'Sourdough Bread', category: 'Bakery', quantity: 1, completed: false, priority: 'high' },
@@ -35,49 +35,49 @@ const INITIAL_ITEMS: GroceryItem[] = [
   { id: '8', name: 'Almonds', category: 'Snacks', quantity: 1, completed: false, priority: 'normal' },
   { id: '9', name: 'Spinach', category: 'Produce', quantity: 1, completed: false, priority: 'high' },
   { id: '10', name: 'Cookies', category: 'Bakery', quantity: 2, completed: true, priority: 'normal' },
-]
+];
 
-const CATEGORIES = ['All', 'Produce', 'Dairy', 'Meat', 'Bakery', 'Pantry', 'Snacks', 'Drinks']
+const CATEGORIES = ['All', 'Produce', 'Dairy', 'Meat', 'Bakery', 'Pantry', 'Snacks', 'Drinks'];
 
 export default function HomeScreen() {
-  const { user } = useUser()
-  const { signOut } = useAuth()
-  const router = useRouter()
-  const colorScheme = useColorScheme()
-  const [isDark, setIsDark] = useState(colorScheme === 'dark')
-  const c = isDark ? dark : light
+  const { user } = useUser();
+  const router = useRouter();
+  const colorScheme = useColorScheme();
 
-  const [items, setItems] = useState<GroceryItem[]>(INITIAL_ITEMS)
-  const [bugModal, setBugModal] = useState(false)
-  const [bugName, setBugName] = useState('')
-  const [bugEmail, setBugEmail] = useState('')
-  const [bugDesc, setBugDesc] = useState('')
+  const [isDark, setIsDark] = useState(colorScheme === 'dark');
+  useEffect(() => { setIsDark(colorScheme === 'dark'); }, [colorScheme]);
 
-  const total = items.length
-  const completed = items.filter(i => i.completed).length
-  const remaining = total - completed
-  const highPriority = items.filter(i => i.priority === 'high' && !i.completed).length
-  const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0
+  const c = isDark ? dark : light;
+
+  const [items] = useState<GroceryItem[]>(INITIAL_ITEMS);
+  const [bugModal, setBugModal] = useState(false);
+  const [bugName, setBugName] = useState('');
+  const [bugEmail, setBugEmail] = useState('');
+  const [bugDesc, setBugDesc] = useState('');
+
+  const total = items.length;
+  const completed = items.filter(i => i.completed).length;
+  const remaining = total - completed;
+  const highPriority = items.filter(i => i.priority === 'high' && !i.completed).length;
+  const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
 
   const categoryStats = CATEGORIES.slice(1).map(cat => ({
     name: cat,
     count: items.filter(i => i.category === cat).length,
     done: items.filter(i => i.category === cat && i.completed).length,
-  })).filter(c => c.count > 0)
+  })).filter(c => c.count > 0);
 
   const sendBug = () => {
-    if (!bugDesc.trim()) { Alert.alert('Required', 'Please describe the bug'); return }
-    Alert.alert('Sent!', 'Bug report received. Thank you!')
-    setBugModal(false)
-    setBugName('')
-    setBugEmail('')
-    setBugDesc('')
-  }
+    if (!bugDesc.trim()) { Alert.alert('Required', 'Please describe the bug'); return; }
+    Alert.alert('Sent!', 'Bug report received. Thank you!');
+    setBugModal(false);
+    setBugName('');
+    setBugEmail('');
+    setBugDesc('');
+  };
 
   return (
     <SafeAreaView style={[s.safe, { backgroundColor: c.bg }]}>
-
-      {/* Header */}
       <View style={[s.header, { borderBottomColor: c.border }]}>
         <View>
           <Text style={[s.appName, { color: c.green }]}>GROCIFY</Text>
@@ -110,8 +110,6 @@ export default function HomeScreen() {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
-
-        {/* Stats */}
         <View style={s.statsRow}>
           <View style={[s.statCard, { backgroundColor: c.card }]}>
             <Text style={[s.statNum, { color: c.green }]}>{total}</Text>
@@ -127,7 +125,6 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* Completion Rate */}
         <View style={[s.card, { backgroundColor: c.card }]}>
           <View style={s.cardRow}>
             <Text style={[s.cardTitle, { color: c.text }]}>Completion rate</Text>
@@ -141,7 +138,6 @@ export default function HomeScreen() {
           </Text>
         </View>
 
-        {/* High Priority */}
         {highPriority > 0 && (
           <View style={[s.card, { backgroundColor: c.card }]}>
             <View style={s.cardRow}>
@@ -161,7 +157,6 @@ export default function HomeScreen() {
           </View>
         )}
 
-        {/* Category Breakdown */}
         <View style={[s.card, { backgroundColor: c.card }]}>
           <View style={s.cardRow}>
             <Text style={[s.cardTitle, { color: c.text }]}>Items by category</Text>
@@ -180,7 +175,6 @@ export default function HomeScreen() {
           ))}
         </View>
 
-        {/* Quick Actions */}
         <View style={s.quickRow}>
           <TouchableOpacity style={[s.quickBtn, { backgroundColor: c.card }]} onPress={() => router.push('/(tabs)/list')}>
             <Ionicons name="list-outline" size={24} color={c.green} />
@@ -195,10 +189,8 @@ export default function HomeScreen() {
             <Text style={[s.quickBtnText, { color: c.text }]}>Report</Text>
           </TouchableOpacity>
         </View>
-
       </ScrollView>
 
-      {/* Bug Modal */}
       <Modal visible={bugModal} transparent animationType="slide" onRequestClose={() => setBugModal(false)}>
         <View style={s.overlay}>
           <View style={[s.modalCard, { backgroundColor: c.bg }]}>
@@ -223,13 +215,12 @@ export default function HomeScreen() {
           </View>
         </View>
       </Modal>
-
     </SafeAreaView>
-  )
+  );
 }
 
-const dark = { bg: '#0f1a12', card: '#1a2e1e', text: '#ffffff', sub: 'rgba(255,255,255,0.55)', border: 'rgba(255,255,255,0.1)', green: '#4ade80' }
-const light = { bg: '#f0faf4', card: '#ffffff', text: '#111827', sub: '#6b7280', border: '#e5e7eb', green: '#16a34a' }
+const dark = { bg: '#0f1a12', card: '#1a2e1e', text: '#ffffff', sub: 'rgba(255,255,255,0.55)', border: 'rgba(255,255,255,0.1)', green: '#4ade80' };
+const light = { bg: '#f0faf4', card: '#ffffff', text: '#111827', sub: '#6b7280', border: '#e5e7eb', green: '#16a34a' };
 
 const s = StyleSheet.create({
   safe: { flex: 1 },
@@ -276,4 +267,4 @@ const s = StyleSheet.create({
   submitBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
   cancelBtn: { paddingVertical: 12, alignItems: 'center' },
   cancelBtnText: { fontSize: 15 },
-})
+});

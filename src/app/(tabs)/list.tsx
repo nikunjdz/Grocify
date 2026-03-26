@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons'
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   Alert,
   Modal,
@@ -46,7 +46,11 @@ const CATEGORY_ICONS: Record<string, string> = {
 
 export default function ListScreen() {
   const colorScheme = useColorScheme()
+
+  // ✅ Fixed: sync dark mode with system theme changes
   const [isDark, setIsDark] = useState(colorScheme === 'dark')
+  useEffect(() => { setIsDark(colorScheme === 'dark') }, [colorScheme])
+
   const c = isDark ? dark : light
 
   const [items, setItems] = useState<GroceryItem[]>(INITIAL_ITEMS)
@@ -133,6 +137,10 @@ export default function ListScreen() {
     }
     setAddModal(false)
   }
+
+  // ✅ Fixed: guard against NaN when qty field is empty or non-numeric
+  const decrementQty = () => setNewQty(q => Math.max(1, (parseInt(q) || 1) - 1).toString())
+  const incrementQty = () => setNewQty(q => ((parseInt(q) || 1) + 1).toString())
 
   return (
     <SafeAreaView style={[s.safe, { backgroundColor: c.bg }]}>
@@ -268,11 +276,12 @@ export default function ListScreen() {
 
               <Text style={[s.inputLbl, { color: c.text }]}>Quantity</Text>
               <View style={s.qtyRow}>
-                <TouchableOpacity style={[s.qtyBtn, { backgroundColor: c.card, borderColor: c.border }]} onPress={() => setNewQty(q => Math.max(1, parseInt(q) - 1).toString())}>
+                {/* ✅ Fixed: NaN-safe decrement and increment */}
+                <TouchableOpacity style={[s.qtyBtn, { backgroundColor: c.card, borderColor: c.border }]} onPress={decrementQty}>
                   <Ionicons name="remove" size={20} color={c.text} />
                 </TouchableOpacity>
                 <TextInput style={[s.qtyInput, { backgroundColor: c.card, color: c.text, borderColor: c.border }]} value={newQty} onChangeText={setNewQty} keyboardType="number-pad" textAlign="center" />
-                <TouchableOpacity style={[s.qtyBtn, { backgroundColor: c.card, borderColor: c.border }]} onPress={() => setNewQty(q => (parseInt(q) + 1).toString())}>
+                <TouchableOpacity style={[s.qtyBtn, { backgroundColor: c.card, borderColor: c.border }]} onPress={incrementQty}>
                   <Ionicons name="add" size={20} color={c.text} />
                 </TouchableOpacity>
               </View>
